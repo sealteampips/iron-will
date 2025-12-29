@@ -1,13 +1,22 @@
 import { useState, useEffect } from 'react';
 import { BookOpen, Plus, Check, X, Library, Trophy, Edit3 } from 'lucide-react';
+// Old IndexedDB imports - kept for reference/rollback
+// import {
+//   addBook,
+//   getActiveBooks,
+//   getCompletedBooks,
+//   markBookComplete,
+//   abandonBook,
+//   updateBook,
+// } from '../utils/bookStorage';
 import {
-  addBook,
-  getActiveBooks,
-  getCompletedBooks,
-  markBookComplete,
-  abandonBook,
-  updateBook,
-} from '../utils/bookStorage';
+  addBookToDB,
+  getActiveBooksFromDB,
+  getCompletedBooksFromDB,
+  markBookCompleteInDB,
+  abandonBookInDB,
+  updateBookInDB,
+} from '../lib/dataService';
 
 function AddBookForm({ onAdd, onCancel }) {
   const [title, setTitle] = useState('');
@@ -292,11 +301,14 @@ export default function BookLibrary({ onBooksChange, refreshKey = 0 }) {
 
   const loadBooks = async () => {
     try {
-      const active = await getActiveBooks();
-      const completed = await getCompletedBooks(new Date().getFullYear());
+      const active = await getActiveBooksFromDB();
+      const completed = await getCompletedBooksFromDB(new Date().getFullYear());
       setActiveBooks(active);
       setCompletedCount(completed.length);
       onBooksChange?.(active);
+      // Old IndexedDB code - kept for reference/rollback
+      // const active = await getActiveBooks();
+      // const completed = await getCompletedBooks(new Date().getFullYear());
     } catch (error) {
       console.error('Error loading books:', error);
     }
@@ -314,9 +326,11 @@ export default function BookLibrary({ onBooksChange, refreshKey = 0 }) {
     }
 
     try {
-      await addBook(bookData);
+      await addBookToDB(bookData);
       await loadBooks();
       setShowAddForm(false);
+      // Old IndexedDB code - kept for reference/rollback
+      // await addBook(bookData);
     } catch (error) {
       console.error('Error adding book:', error);
     }
@@ -324,8 +338,10 @@ export default function BookLibrary({ onBooksChange, refreshKey = 0 }) {
 
   const handleSaveProgress = async (bookId, newPagesRead) => {
     try {
-      await updateBook(bookId, { pages_read: newPagesRead });
+      await updateBookInDB(bookId, { pages_read: newPagesRead });
       await loadBooks();
+      // Old IndexedDB code - kept for reference/rollback
+      // await updateBook(bookId, { pages_read: newPagesRead });
     } catch (error) {
       console.error('Error saving book progress:', error);
       throw error;
@@ -334,8 +350,10 @@ export default function BookLibrary({ onBooksChange, refreshKey = 0 }) {
 
   const handleComplete = async (bookId) => {
     try {
-      await markBookComplete(bookId);
+      await markBookCompleteInDB(bookId);
       await loadBooks();
+      // Old IndexedDB code - kept for reference/rollback
+      // await markBookComplete(bookId);
     } catch (error) {
       console.error('Error completing book:', error);
       throw error;
@@ -344,8 +362,10 @@ export default function BookLibrary({ onBooksChange, refreshKey = 0 }) {
 
   const handleAbandon = async (bookId) => {
     try {
-      await abandonBook(bookId);
+      await abandonBookInDB(bookId);
       await loadBooks();
+      // Old IndexedDB code - kept for reference/rollback
+      // await abandonBook(bookId);
     } catch (error) {
       console.error('Error abandoning book:', error);
       throw error;

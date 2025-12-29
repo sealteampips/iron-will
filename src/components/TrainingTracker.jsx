@@ -1,7 +1,15 @@
 import { useMemo, useState, useEffect } from 'react';
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, startOfWeek, endOfWeek } from 'date-fns';
 import { calculateIronmanProgress, calculateWeeklyVolume, IRONMAN } from '../utils/calculations';
-import { getWorkoutStatuses, updateWorkoutStatus, updateWorkoutNotes, updateWorkoutDistance, calculateIronmanFromWorkouts } from '../utils/storage';
+// Old localStorage imports - kept for reference/rollback
+// import { getWorkoutStatuses, updateWorkoutStatus, updateWorkoutNotes, updateWorkoutDistance, calculateIronmanFromWorkouts } from '../utils/storage';
+import {
+  getWorkoutStatusesFromDB,
+  updateWorkoutStatusInDB,
+  updateWorkoutNotesInDB,
+  updateWorkoutDistanceInDB,
+  calculateIronmanFromWorkoutsDB
+} from '../lib/dataService';
 import { Medal, TrendingUp, Calendar as CalendarIcon } from 'lucide-react';
 import TrainingCalendar from './TrainingCalendar';
 import ComplianceStats from './ComplianceStats';
@@ -155,32 +163,71 @@ function AllTimeTotals({ ironmanData }) {
 export default function TrainingTracker({ entries }) {
   const [workoutStatuses, setWorkoutStatuses] = useState({});
   const [activeView, setActiveView] = useState('calendar'); // 'calendar' or 'stats'
+  const [isLoading, setIsLoading] = useState(true);
+  const [ironmanTotals, setIronmanTotals] = useState({ swim: 0, bike: 0, run: 0 });
 
-  // Load workout statuses on mount
+  // Load workout statuses on mount - now from Supabase
   useEffect(() => {
-    setWorkoutStatuses(getWorkoutStatuses());
+    const loadWorkouts = async () => {
+      setIsLoading(true);
+      try {
+        const statuses = await getWorkoutStatusesFromDB();
+        setWorkoutStatuses(statuses);
+        const totals = await calculateIronmanFromWorkoutsDB();
+        setIronmanTotals(totals);
+      } catch (error) {
+        console.error('Error loading workouts from Supabase:', error);
+      }
+      setIsLoading(false);
+    };
+    loadWorkouts();
+
+    // Old localStorage code - kept for reference/rollback
+    // setWorkoutStatuses(getWorkoutStatuses());
   }, []);
 
   const ironmanData = useMemo(() => calculateIronmanProgress(entries), [entries]);
 
-  const handleUpdateStatus = (date, status) => {
-    const updated = updateWorkoutStatus(date, status);
-    setWorkoutStatuses(updated);
+  const handleUpdateStatus = async (date, status) => {
+    // Optimistic update
+    setWorkoutStatuses(prev => ({
+      ...prev,
+      [date]: { ...prev[date], status }
+    }));
+    await updateWorkoutStatusInDB(date, status);
+    // Old localStorage code - kept for reference/rollback
+    // const updated = updateWorkoutStatus(date, status);
+    // setWorkoutStatuses(updated);
   };
 
-  const handleUpdateNotes = (date, notes) => {
-    const updated = updateWorkoutNotes(date, notes);
-    setWorkoutStatuses(updated);
+  const handleUpdateNotes = async (date, notes) => {
+    setWorkoutStatuses(prev => ({
+      ...prev,
+      [date]: { ...prev[date], notes }
+    }));
+    await updateWorkoutNotesInDB(date, notes);
+    // Old localStorage code - kept for reference/rollback
+    // const updated = updateWorkoutNotes(date, notes);
+    // setWorkoutStatuses(updated);
   };
 
-  const handleUpdateDistance = (date, distance, workoutType) => {
-    const updated = updateWorkoutDistance(date, distance, workoutType);
-    setWorkoutStatuses(updated);
+  const handleUpdateDistance = async (date, distance, workoutType) => {
+    setWorkoutStatuses(prev => ({
+      ...prev,
+      [date]: { ...prev[date], loggedDistance: distance, workoutType }
+    }));
+    await updateWorkoutDistanceInDB(date, distance, workoutType);
+    // Refresh ironman totals after distance update
+    const totals = await calculateIronmanFromWorkoutsDB();
+    setIronmanTotals(totals);
+    // Old localStorage code - kept for reference/rollback
+    // const updated = updateWorkoutDistance(date, distance, workoutType);
+    // setWorkoutStatuses(updated);
   };
 
   // Calculate Ironman progress from logged workout distances
   const workoutIronmanData = useMemo(() => {
-    const totals = calculateIronmanFromWorkouts();
+    const totals = ironmanTotals;
 
     const ironmansCompleted = {
       swim: Math.floor(totals.swim / IRONMAN.swim),
@@ -217,7 +264,7 @@ export default function TrainingTracker({ entries }) {
       totals,
       nextIronmanProgress,
     };
-  }, [workoutStatuses]);
+  }, [ironmanTotals]);
 
   return (
     <div className="space-y-6">

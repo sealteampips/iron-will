@@ -1,8 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { Download, Upload, Menu, X, Flame, Medal, Target } from 'lucide-react';
 import { useProgressData } from './hooks/useProgressData';
-import { exportToJSON, importFromJSON, calculateIronmanFromWorkouts } from './utils/storage';
+import { exportToJSON, importFromJSON } from './utils/storage';
+// Old localStorage imports - kept for reference/rollback
+// import { calculateIronmanFromWorkouts } from './utils/storage';
+import { calculateIronmanFromWorkoutsDB } from './lib/dataService';
 import { calculateStreaks, IRONMAN } from './utils/calculations';
 import TrainingTracker from './components/TrainingTracker';
 import LifestyleTracker from './components/LifestyleTracker';
@@ -66,23 +69,39 @@ function TopStats({ entries }) {
   const weedStreaks = useMemo(() => calculateStreaks(entries, 'cleanFromWeed'), [entries]);
   const pornStreaks = useMemo(() => calculateStreaks(entries, 'cleanFromPorn'), [entries]);
 
-  // Calculate Ironman progress from logged workout distances
-  const ironmanData = useMemo(() => {
-    const totals = calculateIronmanFromWorkouts();
+  // State for async ironman data from Supabase
+  const [ironmanData, setIronmanData] = useState({ fullIronmans: 0, totals: { swim: 0, bike: 0, run: 0 } });
 
-    const ironmansCompleted = {
-      swim: Math.floor(totals.swim / IRONMAN.swim),
-      bike: Math.floor(totals.bike / IRONMAN.bike),
-      run: Math.floor(totals.run / IRONMAN.run),
+  // Load Ironman progress from Supabase
+  useEffect(() => {
+    const loadIronmanData = async () => {
+      try {
+        const totals = await calculateIronmanFromWorkoutsDB();
+
+        const ironmansCompleted = {
+          swim: Math.floor(totals.swim / IRONMAN.swim),
+          bike: Math.floor(totals.bike / IRONMAN.bike),
+          run: Math.floor(totals.run / IRONMAN.run),
+        };
+
+        const fullIronmans = Math.min(
+          ironmansCompleted.swim,
+          ironmansCompleted.bike,
+          ironmansCompleted.run
+        );
+
+        setIronmanData({ fullIronmans, totals });
+      } catch (error) {
+        console.error('Error loading ironman data:', error);
+      }
     };
+    loadIronmanData();
 
-    const fullIronmans = Math.min(
-      ironmansCompleted.swim,
-      ironmansCompleted.bike,
-      ironmansCompleted.run
-    );
-
-    return { fullIronmans, totals };
+    // Old localStorage code - kept for reference/rollback
+    // const totals = calculateIronmanFromWorkouts();
+    // const ironmansCompleted = { ... };
+    // const fullIronmans = Math.min(...);
+    // return { fullIronmans, totals };
   }, []);
 
   const dayNumber = differenceInDays(new Date(), parseISO(START_DATE)) + 1;

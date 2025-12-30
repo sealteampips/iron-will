@@ -9,7 +9,6 @@ const transformDailyEntryFromDB = (row) => {
     date: row.date,
     sobriety: {
       cleanFromWeed: row.weed_clean ?? true,
-      cleanFromPorn: row.porn_clean ?? true,
     },
     sleep: {
       hours: row.sleep_hours || 0,
@@ -42,7 +41,6 @@ const transformDailyEntryToDB = (entry) => {
     sleep_quality: entry.sleep?.quality || 0,
     energy_mood: entry.mood || 5,
     weed_clean: entry.sobriety?.cleanFromWeed ?? true,
-    porn_clean: entry.sobriety?.cleanFromPorn ?? true,
     meditation_minutes: entry.habits?.meditation || 0,
     reading_pages: entry.habits?.reading || 0,
     journaling: entry.habits?.journaling || false,

@@ -67,7 +67,6 @@ function RaceCountdown() {
 
 function TopStats({ entries }) {
   const weedStreaks = useMemo(() => calculateStreaks(entries, 'cleanFromWeed'), [entries]);
-  const pornStreaks = useMemo(() => calculateStreaks(entries, 'cleanFromPorn'), [entries]);
 
   // State for async ironman data from Supabase
   const [ironmanData, setIronmanData] = useState({ fullIronmans: 0, totals: { swim: 0, bike: 0, run: 0 } });
@@ -107,7 +106,7 @@ function TopStats({ entries }) {
   const dayNumber = differenceInDays(new Date(), parseISO(START_DATE)) + 1;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
       {/* Day Counter */}
       <div className="bg-gray-800 rounded-xl p-3 md:p-4 text-center">
         <div className="text-2xl md:text-3xl font-bold text-white">Day {dayNumber}</div>
@@ -124,18 +123,8 @@ function TopStats({ entries }) {
         <p className="text-xs text-gray-500">Best: {weedStreaks.longest}</p>
       </div>
 
-      {/* Porn Streak */}
-      <div className="bg-gradient-to-br from-blue-900/50 to-blue-800/30 rounded-xl p-3 md:p-4">
-        <div className="flex items-center gap-2 mb-1">
-          <Flame className="w-4 h-4 text-orange-400" />
-          <span className="text-2xl md:text-3xl font-bold text-white">{pornStreaks.current}</span>
-        </div>
-        <p className="text-xs text-gray-300">Porn-free streak</p>
-        <p className="text-xs text-gray-500">Best: {pornStreaks.longest}</p>
-      </div>
-
       {/* Ironman Counter */}
-      <div className="col-span-2 md:col-span-2 bg-gradient-to-br from-amber-900/50 to-amber-800/30 rounded-xl p-3 md:p-4">
+      <div className="col-span-2 bg-gradient-to-br from-amber-900/50 to-amber-800/30 rounded-xl p-3 md:p-4">
         <div className="flex items-center gap-3">
           <Medal className="w-8 h-8 text-amber-400" />
           <div>

@@ -47,14 +47,12 @@ function CalendarHeatmap({ entries, year, month }) {
       const dateStr = format(day, 'yyyy-MM-dd');
       const entry = entriesMap[dateStr];
       const isWeedClean = entry?.sobriety?.cleanFromWeed;
-      const isPornClean = entry?.sobriety?.cleanFromPorn;
 
       return {
         date: dateStr,
         day: format(day, 'd'),
         dayOfWeek: getDay(day),
         isWeedClean,
-        isPornClean,
         hasData: !!entry,
       };
     });
@@ -65,9 +63,7 @@ function CalendarHeatmap({ entries, year, month }) {
 
   const getCellColor = (data) => {
     if (!data.hasData) return 'bg-gray-800';
-    if (data.isWeedClean && data.isPornClean) return 'bg-purple-500';
     if (data.isWeedClean) return 'bg-green-500';
-    if (data.isPornClean) return 'bg-blue-500';
     return 'bg-red-900';
   };
 
@@ -94,7 +90,7 @@ function CalendarHeatmap({ entries, year, month }) {
           <div
             key={data.date}
             className={`aspect-square rounded-sm ${getCellColor(data)} flex items-center justify-center text-xs transition-colors cursor-default`}
-            title={`${data.date}${data.hasData ? ` - Weed: ${data.isWeedClean ? 'Clean' : 'Not clean'}, Porn: ${data.isPornClean ? 'Clean' : 'Not clean'}` : ''}`}
+            title={`${data.date}${data.hasData ? ` - Weed: ${data.isWeedClean ? 'Clean' : 'Not clean'}` : ''}`}
           >
             <span className={data.hasData ? 'text-white' : 'text-gray-600'}>
               {data.day}
@@ -107,19 +103,11 @@ function CalendarHeatmap({ entries, year, month }) {
       <div className="flex flex-wrap gap-3 mt-3 text-xs">
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 bg-green-500 rounded-sm"></div>
-          <span className="text-gray-400">Weed only</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-blue-500 rounded-sm"></div>
-          <span className="text-gray-400">Porn only</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-purple-500 rounded-sm"></div>
-          <span className="text-gray-400">Both clean</span>
+          <span className="text-gray-400">Clean</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 bg-red-900 rounded-sm"></div>
-          <span className="text-gray-400">Neither</span>
+          <span className="text-gray-400">Not clean</span>
         </div>
       </div>
     </div>
@@ -132,32 +120,18 @@ export default function SobrietyTracker({ entries }) {
     [entries]
   );
 
-  const pornStreaks = useMemo(() =>
-    calculateStreaks(entries, 'cleanFromPorn'),
-    [entries]
-  );
-
   const currentDate = new Date();
 
   return (
     <div className="space-y-6">
-      {/* Streak Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <StreakCard
-          title="Clean from Weed"
-          current={weedStreaks.current}
-          longest={weedStreaks.longest}
-          color="bg-green-500"
-          bgColor="bg-gradient-to-br from-green-900/50 to-green-800/30"
-        />
-        <StreakCard
-          title="Clean from Porn"
-          current={pornStreaks.current}
-          longest={pornStreaks.longest}
-          color="bg-blue-500"
-          bgColor="bg-gradient-to-br from-blue-900/50 to-blue-800/30"
-        />
-      </div>
+      {/* Streak Card */}
+      <StreakCard
+        title="Clean from Weed"
+        current={weedStreaks.current}
+        longest={weedStreaks.longest}
+        color="bg-green-500"
+        bgColor="bg-gradient-to-br from-green-900/50 to-green-800/30"
+      />
 
       {/* Calendar Heatmap */}
       <div className="bg-gray-800 rounded-xl p-4 md:p-6">

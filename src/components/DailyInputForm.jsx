@@ -101,21 +101,6 @@ export default function DailyInputForm({ selectedDate, onDateChange, entry, onSa
             </div>
           </label>
 
-          <label className="flex items-center justify-between p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-650">
-            <span className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-              Clean from porn
-            </span>
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={formData.sobriety?.cleanFromPorn || false}
-                onChange={(e) => handleChange('sobriety.cleanFromPorn', e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-            </div>
-          </label>
         </div>
 
         {/* Training Section */}

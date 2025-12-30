@@ -73,7 +73,6 @@ export const createDefaultEntry = (date) => ({
   date,
   sobriety: {
     cleanFromWeed: true,  // Default ON - toggle OFF to break streak
-    cleanFromPorn: true,  // Default ON - toggle OFF to break streak
   },
   training: {
     type: null, // 'swim' | 'bike' | 'run' | 'strength' | 'rest'

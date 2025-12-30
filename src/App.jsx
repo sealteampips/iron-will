@@ -129,21 +129,16 @@ function TopStats({ entries, todayEntry }) {
       {/* Ironman Counter */}
       <div className="col-span-2 bg-gradient-to-br from-amber-900/50 to-amber-800/30 rounded-xl p-3 md:p-4">
         <div className="flex items-center gap-3">
-          <Medal className="w-8 h-8 text-amber-400" />
+          <Medal className="w-8 h-8 text-amber-400 flex-shrink-0" />
           <div>
             <div className="text-2xl md:text-3xl font-bold text-white">{ironmanData.fullIronmans}</div>
             <p className="text-xs text-gray-300">Ironmans Completed</p>
           </div>
-          <div className="ml-auto text-right hidden md:block">
-            <div className="text-xs text-gray-400">
-              <span className="text-cyan-400">{ironmanData.totals.swim.toFixed(1)}</span> swim
-            </div>
-            <div className="text-xs text-gray-400">
-              <span className="text-yellow-400">{ironmanData.totals.bike.toFixed(1)}</span> bike
-            </div>
-            <div className="text-xs text-gray-400">
-              <span className="text-orange-400">{ironmanData.totals.run.toFixed(1)}</span> run
-            </div>
+          {/* Distance totals - inline on mobile, stacked on desktop */}
+          <div className="ml-auto flex gap-2 md:gap-0 md:flex-col md:text-right text-xs text-gray-400">
+            <span><span className="text-cyan-400">{ironmanData.totals.swim.toFixed(1)}</span> swim</span>
+            <span><span className="text-yellow-400">{ironmanData.totals.bike.toFixed(1)}</span> bike</span>
+            <span><span className="text-orange-400">{ironmanData.totals.run.toFixed(1)}</span> run</span>
           </div>
         </div>
       </div>

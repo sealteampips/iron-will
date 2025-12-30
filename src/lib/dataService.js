@@ -92,7 +92,7 @@ export const saveDailyEntry = async (date, entry) => {
 
   if (error) {
     console.error('Error saving daily entry:', error);
-    return null;
+    throw new Error(`Failed to save entry: ${error.message}`);
   }
 
   return transformDailyEntryFromDB(data);
@@ -209,7 +209,7 @@ export const saveWorkout = async (date, workoutData) => {
 
   if (error) {
     console.error('Error saving workout:', error);
-    return null;
+    throw new Error(`Failed to save workout: ${error.message}`);
   }
 
   return transformWorkoutFromDB(data);

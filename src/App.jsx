@@ -147,7 +147,7 @@ function TopStats({ entries, todayEntry }) {
 }
 
 export default function App() {
-  const { entries, selectedDate, setSelectedDate, currentEntry, updateEntry, isLoading, getEntryForDate } = useProgressData();
+  const { entries, selectedDate, setSelectedDate, currentEntry, updateEntry, isLoading, getEntryForDate, error, saveStatus } = useProgressData();
   const [activeTab, setActiveTab] = useState('training');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -175,13 +175,42 @@ export default function App() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-center p-6">
+          <div className="text-red-400 text-xl mb-2">Connection Error</div>
+          <p className="text-gray-400 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">Progress Tracker</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold">Progress Tracker</h1>
+              {/* Save Status Indicator */}
+              {saveStatus === 'saving' && (
+                <span className="text-xs text-gray-400 animate-pulse">Saving...</span>
+              )}
+              {saveStatus === 'saved' && (
+                <span className="text-xs text-green-400">Saved</span>
+              )}
+              {saveStatus === 'error' && (
+                <span className="text-xs text-red-400">Save failed!</span>
+              )}
+            </div>
 
             <div className="flex items-center gap-2">
               {/* Export/Import buttons */}

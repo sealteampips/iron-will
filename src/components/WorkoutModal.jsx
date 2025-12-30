@@ -53,7 +53,8 @@ export default function WorkoutModal({ workout, date, onClose, onUpdateStatus, o
   };
 
   const handleDistanceBlur = () => {
-    const distance = parseFloat(loggedDistance) || 0;
+    const distance = Math.max(0, parseFloat(loggedDistance) || 0);
+    setLoggedDistance(distance > 0 ? distance.toString() : '');
     onUpdateDistance?.(date, distance, workoutTypeKey);
   };
 

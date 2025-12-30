@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { getAllDailyEntries, saveDailyEntry } from '../lib/dataService';
-// Old localStorage imports - kept for reference/rollback
-// import { getStoredData, saveEntry, getAllEntries, createDefaultEntry } from '../utils/storage';
 import { createDefaultEntry } from '../utils/storage';
 
 export const useProgressData = () => {
@@ -10,11 +8,14 @@ export const useProgressData = () => {
   const [entries, setEntries] = useState([]);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [saveStatus, setSaveStatus] = useState(null); // 'saving' | 'saved' | 'error'
 
   // Load data on mount - now from Supabase
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
+      setError(null);
       try {
         const supabaseEntries = await getAllDailyEntries();
         setEntries(supabaseEntries);
@@ -24,8 +25,9 @@ export const useProgressData = () => {
           entriesObj[entry.date] = entry;
         });
         setData({ entries: entriesObj, startDate: '2025-12-08' });
-      } catch (error) {
-        console.error('Error loading data from Supabase:', error);
+      } catch (err) {
+        console.error('Error loading data from Supabase:', err);
+        setError('Failed to load data. Please check your connection.');
         setEntries([]);
         setData({ entries: {}, startDate: '2025-12-08' });
       }
@@ -33,12 +35,6 @@ export const useProgressData = () => {
     };
 
     loadData();
-
-    // Old localStorage code - kept for reference/rollback
-    // const storedData = getStoredData();
-    // setData(storedData);
-    // setEntries(getAllEntries());
-    // setIsLoading(false);
   }, []);
 
   // Get entry for a specific date
@@ -49,6 +45,7 @@ export const useProgressData = () => {
 
   // Save entry for a date - now to Supabase
   const updateEntry = useCallback(async (date, entry) => {
+    setSaveStatus('saving');
     try {
       const savedEntry = await saveDailyEntry(date, entry);
       if (savedEntry) {
@@ -68,15 +65,16 @@ export const useProgressData = () => {
           ...prev,
           entries: { ...prev?.entries, [date]: savedEntry }
         }));
+        setSaveStatus('saved');
+        // Clear saved status after 2 seconds
+        setTimeout(() => setSaveStatus(null), 2000);
       }
-    } catch (error) {
-      console.error('Error saving entry to Supabase:', error);
+    } catch (err) {
+      console.error('Error saving entry to Supabase:', err);
+      setSaveStatus('error');
+      // Keep error status visible longer
+      setTimeout(() => setSaveStatus(null), 5000);
     }
-
-    // Old localStorage code - kept for reference/rollback
-    // const updatedData = saveEntry(date, entry);
-    // setData(updatedData);
-    // setEntries(getAllEntries());
   }, []);
 
   // Get current entry (selected date)
@@ -91,5 +89,7 @@ export const useProgressData = () => {
     getEntryForDate,
     updateEntry,
     isLoading,
+    error,
+    saveStatus,
   };
 };

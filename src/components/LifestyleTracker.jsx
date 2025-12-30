@@ -27,12 +27,12 @@ import {
   getWeedStreakData,
   breakWeedStreak,
   restoreWeedStreak,
+  getActiveBooksFromDB,
+  updateBookInDB,
 } from '../lib/dataService';
 import {
-  getActiveBooks,
   setReadingForDate,
   getReadingForDate,
-  recalculateBookProgress,
   updateCompoundProgress
 } from '../utils/bookStorage';
 import BookLibrary from './BookLibrary';
@@ -145,8 +145,13 @@ function ReadingInput({ value, bookId, onChange, onBookChange, selectedDate, onB
 
   useEffect(() => {
     const loadBooks = async () => {
-      const books = await getActiveBooks();
-      setActiveBooks(books);
+      try {
+        const books = await getActiveBooksFromDB();
+        setActiveBooks(books);
+      } catch (error) {
+        console.error('Error loading books:', error);
+        setActiveBooks([]);
+      }
       setLoading(false);
     };
     loadBooks();

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
 import { getWeedStreakData } from '../lib/dataService';
 import { Flame, Trophy } from 'lucide-react';
 

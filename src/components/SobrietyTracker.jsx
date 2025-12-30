@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from 'date-fns';
-import { calculateStreaks } from '../utils/calculations';
+import { getWeedStreakData } from '../lib/dataService';
 import { Flame, Trophy } from 'lucide-react';
 
 function StreakCard({ title, current, longest, color, bgColor }) {
@@ -114,10 +114,14 @@ function CalendarHeatmap({ entries, year, month }) {
   );
 }
 
-export default function SobrietyTracker({ entries }) {
+export default function SobrietyTracker({ entries, todayEntry }) {
+  // Get today's clean status - default to true if not set
+  const todayClean = todayEntry?.sobriety?.cleanFromWeed ?? true;
+
+  // Use the new streak calculation based on start date
   const weedStreaks = useMemo(() =>
-    calculateStreaks(entries, 'cleanFromWeed'),
-    [entries]
+    getWeedStreakData(todayClean),
+    [todayClean]
   );
 
   const currentDate = new Date();

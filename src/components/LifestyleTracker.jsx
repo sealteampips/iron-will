@@ -23,7 +23,11 @@ import {
   XP_TIERS,
   MAX_DAILY_XP,
 } from '../utils/storage';
-import { calculateStreaks } from '../utils/calculations';
+import {
+  getWeedStreakData,
+  breakWeedStreak,
+  restoreWeedStreak,
+} from '../lib/dataService';
 import {
   getActiveBooks,
   setReadingForDate,
@@ -374,8 +378,11 @@ export default function LifestyleTracker({ entries, selectedDate, onDateChange, 
     return merged;
   }, [entries, formData, selectedDate]);
 
-  // Calculate streaks using merged entries (includes current unsaved changes)
-  const weedStreaks = useMemo(() => calculateStreaks(entriesWithCurrent, 'cleanFromWeed'), [entriesWithCurrent]);
+  // Calculate weed streak using new start date based system
+  // Streak only breaks if TODAY's toggle is OFF
+  const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd');
+  const todayClean = isToday ? (formData.sobriety?.cleanFromWeed ?? true) : true;
+  const weedStreaks = useMemo(() => getWeedStreakData(todayClean), [todayClean]);
   const meditationStats = useMemo(() => calculateHabitStats(entriesWithCurrent, 'meditation'), [entriesWithCurrent]);
   const readingStats = useMemo(() => calculateHabitStats(entriesWithCurrent, 'reading'), [entriesWithCurrent]);
   const journalingStats = useMemo(() => calculateHabitStats(entriesWithCurrent, 'journaling'), [entriesWithCurrent]);
@@ -400,6 +407,17 @@ export default function LifestyleTracker({ entries, selectedDate, onDateChange, 
       newData[field] = value;
     }
 
+    // Handle streak break/restore when toggling weed clean on TODAY only
+    if (field === 'sobriety.cleanFromWeed' && isToday) {
+      if (value === false) {
+        // User toggled OFF - break the streak
+        breakWeedStreak();
+      } else {
+        // User toggled back ON - restore/start new streak from today
+        restoreWeedStreak();
+      }
+    }
+
     setFormData(newData);
     onSave(selectedDate, newData);
   };
@@ -411,8 +429,6 @@ export default function LifestyleTracker({ entries, selectedDate, onDateChange, 
       : addDays(currentDate, 1);
     onDateChange(format(newDate, 'yyyy-MM-dd'));
   };
-
-  const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd');
 
   return (
     <div className="space-y-6">

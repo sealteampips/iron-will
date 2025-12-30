@@ -512,3 +512,71 @@ export const setPagesForBookInDB = async (bookId, pages) => {
 
   return transformBookFromDB(data);
 };
+
+// ============ WEED STREAK TRACKING ============
+// Streak is calculated from a start date, stored in localStorage
+// The streak only breaks if today's toggle is OFF
+
+const WEED_STREAK_KEY = 'iron-will-weed-streak-start';
+const DEFAULT_STREAK_START = '2025-12-09'; // Day 1 of the streak
+
+// Get the streak start date
+export const getWeedStreakStart = () => {
+  if (typeof window === 'undefined') return DEFAULT_STREAK_START;
+  const stored = localStorage.getItem(WEED_STREAK_KEY);
+  return stored || DEFAULT_STREAK_START;
+};
+
+// Set the streak start date
+export const setWeedStreakStart = (date) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(WEED_STREAK_KEY, date);
+};
+
+// Calculate current streak from start date
+export const calculateWeedStreak = (todayClean = true) => {
+  const startDate = getWeedStreakStart();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+
+  // If today is not clean, streak is 0
+  if (!todayClean) {
+    return 0;
+  }
+
+  // Calculate days since start date (inclusive of start day)
+  const diffTime = today.getTime() - start.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+  return Math.max(0, diffDays);
+};
+
+// Handle streak break - reset start date to tomorrow (streak restarts tomorrow)
+export const breakWeedStreak = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  setWeedStreakStart(tomorrowStr);
+};
+
+// Handle streak restore - if user toggles back ON today, start streak from today
+export const restoreWeedStreak = () => {
+  const today = new Date().toISOString().split('T')[0];
+  setWeedStreakStart(today);
+};
+
+// Get streak data (current streak and start date)
+export const getWeedStreakData = (todayClean = true) => {
+  const startDate = getWeedStreakStart();
+  const current = calculateWeedStreak(todayClean);
+
+  return {
+    current,
+    startDate,
+    longest: current, // For now, longest is same as current (can add separate tracking later)
+  };
+};
+

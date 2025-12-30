@@ -5,8 +5,8 @@ import { useProgressData } from './hooks/useProgressData';
 import { exportToJSON, importFromJSON } from './utils/storage';
 // Old localStorage imports - kept for reference/rollback
 // import { calculateIronmanFromWorkouts } from './utils/storage';
-import { calculateIronmanFromWorkoutsDB } from './lib/dataService';
-import { calculateStreaks, IRONMAN } from './utils/calculations';
+import { calculateIronmanFromWorkoutsDB, getWeedStreakData } from './lib/dataService';
+import { IRONMAN } from './utils/calculations';
 import TrainingTracker from './components/TrainingTracker';
 import LifestyleTracker from './components/LifestyleTracker';
 import NutritionTracker from './components/NutritionTracker';
@@ -65,8 +65,11 @@ function RaceCountdown() {
   );
 }
 
-function TopStats({ entries }) {
-  const weedStreaks = useMemo(() => calculateStreaks(entries, 'cleanFromWeed'), [entries]);
+function TopStats({ entries, todayEntry }) {
+  // Use new streak calculation based on start date
+  // Streak only breaks if TODAY's toggle is OFF
+  const todayClean = todayEntry?.sobriety?.cleanFromWeed ?? true;
+  const weedStreaks = useMemo(() => getWeedStreakData(todayClean), [todayClean]);
 
   // State for async ironman data from Supabase
   const [ironmanData, setIronmanData] = useState({ fullIronmans: 0, totals: { swim: 0, bike: 0, run: 0 } });
@@ -149,9 +152,13 @@ function TopStats({ entries }) {
 }
 
 export default function App() {
-  const { entries, selectedDate, setSelectedDate, currentEntry, updateEntry, isLoading } = useProgressData();
+  const { entries, selectedDate, setSelectedDate, currentEntry, updateEntry, isLoading, getEntryForDate } = useProgressData();
   const [activeTab, setActiveTab] = useState('training');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Get today's entry for streak calculation (streak only breaks if TODAY is toggled off)
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const todayEntry = getEntryForDate(todayStr);
 
   const handleImport = async (e) => {
     const file = e.target.files?.[0];
@@ -263,7 +270,7 @@ export default function App() {
         <RaceCountdown />
 
         {/* Top Stats */}
-        <TopStats entries={entries} />
+        <TopStats entries={entries} todayEntry={todayEntry} />
 
         {/* Tab Content */}
         <div className="pt-2">

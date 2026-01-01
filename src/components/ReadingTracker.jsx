@@ -6,16 +6,12 @@ import {
   Plus,
   ChevronDown,
   ChevronUp,
-  Check,
   X,
   Trophy,
-  Leaf,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
   getWeedStreakData,
-  breakWeedStreak,
-  restoreWeedStreak,
   getActiveBooksFromDB,
   getCompletedBooksFromDB,
   addBookToDB,
@@ -29,33 +25,14 @@ import {
   restoreReadingStreak,
 } from '../lib/dataService';
 
-// Sobriety Toggle Component (compact)
-function SobrietySection({ isClean, onToggle, streak }) {
+// Sobriety Display (passive, no toggle)
+function SobrietyBadge({ streak }) {
   return (
-    <div className="bg-gray-800 rounded-xl p-4 mb-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Leaf className="w-5 h-5 text-green-400" />
-          <span className="text-sm font-medium">Clean from weed</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-400">
-            <span className="text-green-400 font-bold">{streak.current}</span> days
-            <span className="text-gray-500 ml-2">Best: {streak.longest}</span>
-          </div>
-          <button
-            onClick={onToggle}
-            className={`w-12 h-6 rounded-full transition-colors relative ${
-              isClean ? 'bg-green-500' : 'bg-gray-600'
-            }`}
-          >
-            <div
-              className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
-                isClean ? 'left-7' : 'left-1'
-              }`}
-            />
-          </button>
-        </div>
+    <div className="bg-gradient-to-r from-green-900/40 to-green-800/20 rounded-xl px-4 py-3 mb-4">
+      <div className="flex items-center gap-2">
+        <span className="text-lg">🌿</span>
+        <span className="text-green-400 font-bold">{streak.current}</span>
+        <span className="text-gray-300 text-sm">days weed-free</span>
       </div>
     </div>
   );
@@ -455,9 +432,8 @@ export default function ReadingTracker({ entries, updateEntry }) {
   const [completingBook, setCompletingBook] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Sobriety state
-  const isClean = todayEntry?.sobriety?.cleanFromWeed ?? true;
-  const weedStreak = useMemo(() => getWeedStreakData(isClean), [isClean]);
+  // Sobriety streak (always counting from start date, no toggle needed)
+  const weedStreak = useMemo(() => getWeedStreakData(true), []);
 
   // Reading streak state
   const [didReadToday, setDidReadToday] = useState(true);
@@ -495,20 +471,6 @@ export default function ReadingTracker({ entries, updateEntry }) {
       });
     }
   }, [expandedBookId, bookReadingLogs]);
-
-  // Handle sobriety toggle
-  const handleSobrietyToggle = () => {
-    const newValue = !isClean;
-    if (newValue === false) {
-      breakWeedStreak();
-    } else {
-      restoreWeedStreak();
-    }
-    updateEntry(today, {
-      ...todayEntry,
-      sobriety: { cleanFromWeed: newValue },
-    });
-  };
 
   // Handle reading toggle
   const handleDidReadChange = (value) => {
@@ -593,12 +555,8 @@ export default function ReadingTracker({ entries, updateEntry }) {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Sobriety Section */}
-      <SobrietySection
-        isClean={isClean}
-        onToggle={handleSobrietyToggle}
-        streak={weedStreak}
-      />
+      {/* Sobriety Badge */}
+      <SobrietyBadge streak={weedStreak} />
 
       {/* Today's Reading */}
       <TodaysReading

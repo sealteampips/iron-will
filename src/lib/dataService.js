@@ -580,3 +580,142 @@ export const getWeedStreakData = (todayClean = true) => {
   };
 };
 
+// ============ READING LOGS ============
+
+// Get all reading logs for a specific book
+export const getReadingLogsForBook = async (bookId) => {
+  const { data, error } = await supabase
+    .from('reading_logs')
+    .select('*')
+    .eq('book_id', bookId)
+    .order('date', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching reading logs:', error);
+    return [];
+  }
+
+  return data;
+};
+
+// Get reading log for a specific date
+export const getReadingLogForDate = async (date) => {
+  const { data, error } = await supabase
+    .from('reading_logs')
+    .select('*, books(title, author)')
+    .eq('date', date)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error fetching reading log:', error);
+    return null;
+  }
+
+  return data;
+};
+
+// Save reading log (upsert by date - one entry per day)
+export const saveReadingLog = async (log) => {
+  const { data, error } = await supabase
+    .from('reading_logs')
+    .upsert({
+      date: log.date,
+      book_id: log.book_id,
+      page_number: log.page_number,
+      notes: log.notes || '',
+      did_read: log.did_read ?? true,
+    }, { onConflict: 'date' })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error saving reading log:', error);
+    throw new Error(`Failed to save reading log: ${error.message}`);
+  }
+
+  return data;
+};
+
+// Delete reading log for a date
+export const deleteReadingLog = async (date) => {
+  const { error } = await supabase
+    .from('reading_logs')
+    .delete()
+    .eq('date', date);
+
+  if (error) {
+    console.error('Error deleting reading log:', error);
+    return false;
+  }
+
+  return true;
+};
+
+// ============ READING STREAK ============
+const READING_STREAK_KEY = 'iron-will-reading-streak-start';
+const READING_BEST_STREAK_KEY = 'iron-will-reading-best-streak';
+
+export const getReadingStreakStart = () => {
+  if (typeof window === 'undefined') return new Date().toISOString().split('T')[0];
+  const stored = localStorage.getItem(READING_STREAK_KEY);
+  return stored || new Date().toISOString().split('T')[0];
+};
+
+export const setReadingStreakStart = (date) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(READING_STREAK_KEY, date);
+};
+
+export const getReadingBestStreak = () => {
+  if (typeof window === 'undefined') return 0;
+  return parseInt(localStorage.getItem(READING_BEST_STREAK_KEY) || '0', 10);
+};
+
+export const setReadingBestStreak = (streak) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(READING_BEST_STREAK_KEY, streak.toString());
+};
+
+export const calculateReadingStreak = (didReadToday = true) => {
+  const startDate = getReadingStreakStart();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+
+  if (!didReadToday) {
+    return 0;
+  }
+
+  const diffTime = today.getTime() - start.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+  return Math.max(0, diffDays);
+};
+
+export const breakReadingStreak = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  setReadingStreakStart(tomorrowStr);
+};
+
+export const restoreReadingStreak = () => {
+  const today = new Date().toISOString().split('T')[0];
+  setReadingStreakStart(today);
+};
+
+export const getReadingStreakData = (didReadToday = true) => {
+  const current = calculateReadingStreak(didReadToday);
+  const best = getReadingBestStreak();
+
+  // Update best if current is higher
+  if (current > best) {
+    setReadingBestStreak(current);
+    return { current, best: current };
+  }
+
+  return { current, best };
+};
+

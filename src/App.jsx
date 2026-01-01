@@ -3,12 +3,10 @@ import { format, differenceInDays, parseISO } from 'date-fns';
 import { Download, Upload, Menu, X, Flame, Medal, Target } from 'lucide-react';
 import { useProgressData } from './hooks/useProgressData';
 import { exportToJSON, importFromJSON } from './utils/storage';
-// Old localStorage imports - kept for reference/rollback
-// import { calculateIronmanFromWorkouts } from './utils/storage';
 import { calculateIronmanFromWorkoutsDB, getWeedStreakData } from './lib/dataService';
 import { IRONMAN } from './utils/calculations';
 import TrainingTracker from './components/TrainingTracker';
-import LifestyleTracker from './components/LifestyleTracker';
+import ReadingTracker from './components/ReadingTracker';
 import NutritionTracker from './components/NutritionTracker';
 import DailyQuote from './components/DailyQuote';
 
@@ -17,7 +15,7 @@ const RACE_DATE = '2026-06-14';
 
 const TABS = [
   { id: 'training', label: 'Training', icon: '🏋️' },
-  { id: 'lifestyle', label: 'Lifestyle', icon: '✨' },
+  { id: 'reading', label: 'Reading', icon: '📚' },
   { id: 'nutrition', label: 'Nutrition', icon: '🍽️' },
 ];
 
@@ -299,13 +297,10 @@ export default function App() {
         {/* Tab Content */}
         <div className="pt-2">
           {activeTab === 'training' && <TrainingTracker entries={entries} />}
-          {activeTab === 'lifestyle' && (
-            <LifestyleTracker
+          {activeTab === 'reading' && (
+            <ReadingTracker
               entries={entries}
-              selectedDate={selectedDate}
-              onDateChange={setSelectedDate}
-              currentEntry={currentEntry}
-              onSave={updateEntry}
+              updateEntry={updateEntry}
             />
           )}
           {activeTab === 'nutrition' && <NutritionTracker />}

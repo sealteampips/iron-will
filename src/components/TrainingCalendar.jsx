@@ -84,9 +84,13 @@ export default function TrainingCalendar({ workoutStatuses, onUpdateStatus, onUp
     );
   };
 
-  // Calculate training period bounds
-  const trainingStart = new Date('2025-12-07');
-  const trainingEnd = new Date('2026-07-31'); // Extended one month past race day
+  // Calculate training period bounds (first day of training month to last day of race month+1)
+  const trainingStartMonth = new Date('2025-12-01');  // December 2025
+  const trainingEndMonth = new Date('2026-07-31');    // Extended one month past race day
+
+  // Check if we can navigate to previous/next month
+  const canGoPrev = !isBefore(startOfMonth(subMonths(currentMonth, 1)), trainingStartMonth);
+  const canGoNext = !isAfter(startOfMonth(addMonths(currentMonth, 1)), trainingEndMonth);
 
   return (
     <div className="space-y-4">
@@ -111,7 +115,7 @@ export default function TrainingCalendar({ workoutStatuses, onUpdateStatus, onUp
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => navigateMonth('prev')}
-            disabled={isBefore(subMonths(currentMonth, 1), trainingStart)}
+            disabled={!canGoPrev}
             className="p-2 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -131,7 +135,7 @@ export default function TrainingCalendar({ workoutStatuses, onUpdateStatus, onUp
             </button>
             <button
               onClick={() => navigateMonth('next')}
-              disabled={isAfter(addMonths(currentMonth, 1), trainingEnd)}
+              disabled={!canGoNext}
               className="p-2 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronRight className="w-5 h-5" />

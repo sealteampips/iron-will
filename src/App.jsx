@@ -285,24 +285,24 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Daily Motivational Quote */}
-        <DailyQuote />
+        {/* Show training-focused header for Training and Nutrition tabs */}
+        {activeTab !== 'reading' && (
+          <>
+            {/* Daily Motivational Quote */}
+            <DailyQuote />
 
-        {/* Race Countdown */}
-        <RaceCountdown />
+            {/* Race Countdown */}
+            <RaceCountdown />
 
-        {/* Top Stats */}
-        <TopStats entries={entries} todayEntry={todayEntry} />
+            {/* Top Stats */}
+            <TopStats entries={entries} todayEntry={todayEntry} />
+          </>
+        )}
 
         {/* Tab Content */}
-        <div className="pt-2">
+        <div className={activeTab === 'reading' ? '' : 'pt-2'}>
           {activeTab === 'training' && <TrainingTracker entries={entries} />}
-          {activeTab === 'reading' && (
-            <ReadingTracker
-              entries={entries}
-              updateEntry={updateEntry}
-            />
-          )}
+          {activeTab === 'reading' && <ReadingTracker />}
           {activeTab === 'nutrition' && <NutritionTracker />}
         </div>
       </main>

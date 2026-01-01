@@ -115,14 +115,19 @@ function StatsRow({ completedBooks, readingStreak }) {
 }
 
 // Date Navigation Component
+const READING_START_DATE = '2026-01-01'; // Day 1 of reading tracking
+
 function DateNavigation({ selectedDate, onDateChange }) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const isCurrentDay = selectedDate === today;
+  const isFirstDay = selectedDate === READING_START_DATE;
   const displayDate = parseISO(selectedDate);
 
   const handlePrev = () => {
-    const prevDate = subDays(displayDate, 1);
-    onDateChange(format(prevDate, 'yyyy-MM-dd'));
+    if (!isFirstDay) {
+      const prevDate = subDays(displayDate, 1);
+      onDateChange(format(prevDate, 'yyyy-MM-dd'));
+    }
   };
 
   const handleNext = () => {
@@ -140,9 +145,14 @@ function DateNavigation({ selectedDate, onDateChange }) {
     <div className="flex items-center justify-center gap-2 mb-4">
       <button
         onClick={handlePrev}
-        className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+        disabled={isFirstDay}
+        className={`p-2 rounded-lg transition-colors ${
+          isFirstDay
+            ? 'text-gray-600 cursor-not-allowed'
+            : 'hover:bg-gray-700 text-gray-400'
+        }`}
       >
-        <ChevronLeft className="w-5 h-5 text-gray-400" />
+        <ChevronLeft className="w-5 h-5" />
       </button>
 
       <div className="flex items-center gap-2">
@@ -562,15 +572,22 @@ export default function ReadingTracker() {
 
   // Reading streak (starts from Jan 1, 2026 - Day 1)
   const [didReadToday, setDidReadToday] = useState(true);
+  const [streakInitialized, setStreakInitialized] = useState(false);
 
-  // Reset reading streak on first load to ensure it starts from Jan 1, 2026
+  // Ensure streak starts from Jan 1, 2026 (one-time migration for old data)
   useEffect(() => {
-    resetReadingStreak();
+    const storedStart = localStorage.getItem('iron-will-reading-streak-start');
+    // Only reset if the stored date is before Jan 1, 2026 or not set
+    if (!storedStart || storedStart < '2026-01-01') {
+      resetReadingStreak();
+    }
+    setStreakInitialized(true);
   }, []);
 
   const readingStreak = useMemo(() => {
+    if (!streakInitialized) return { current: 1, best: 1 };
     return getReadingStreakData(didReadToday);
-  }, [didReadToday]);
+  }, [didReadToday, streakInitialized]);
 
   const isTodaySelected = selectedDate === today;
 

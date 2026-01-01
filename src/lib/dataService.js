@@ -654,11 +654,17 @@ export const deleteReadingLog = async (date) => {
 // ============ READING STREAK ============
 const READING_STREAK_KEY = 'iron-will-reading-streak-start';
 const READING_BEST_STREAK_KEY = 'iron-will-reading-best-streak';
+const DEFAULT_READING_STREAK_START = '2026-01-01'; // Day 1 of reading streak
 
 export const getReadingStreakStart = () => {
-  if (typeof window === 'undefined') return new Date().toISOString().split('T')[0];
+  if (typeof window === 'undefined') return DEFAULT_READING_STREAK_START;
   const stored = localStorage.getItem(READING_STREAK_KEY);
-  return stored || new Date().toISOString().split('T')[0];
+  // Always use the default if not set or if before the reset date
+  if (!stored || stored < DEFAULT_READING_STREAK_START) {
+    localStorage.setItem(READING_STREAK_KEY, DEFAULT_READING_STREAK_START);
+    return DEFAULT_READING_STREAK_START;
+  }
+  return stored;
 };
 
 export const setReadingStreakStart = (date) => {
@@ -703,7 +709,19 @@ export const breakReadingStreak = () => {
 
 export const restoreReadingStreak = () => {
   const today = new Date().toISOString().split('T')[0];
-  setReadingStreakStart(today);
+  // If today is before the reset date, use the reset date instead
+  if (today < DEFAULT_READING_STREAK_START) {
+    setReadingStreakStart(DEFAULT_READING_STREAK_START);
+  } else {
+    setReadingStreakStart(today);
+  }
+};
+
+// Reset reading streak to the default start date (Jan 1, 2026)
+export const resetReadingStreak = () => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(READING_STREAK_KEY, DEFAULT_READING_STREAK_START);
+  localStorage.setItem(READING_BEST_STREAK_KEY, '0');
 };
 
 export const getReadingStreakData = (didReadToday = true) => {

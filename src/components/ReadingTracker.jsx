@@ -25,7 +25,7 @@ import {
   getReadingStreakData,
   breakReadingStreak,
   restoreReadingStreak,
-  setReadingStreakStart,
+  resetReadingStreak,
 } from '../lib/dataService';
 
 // Reading-focused quotes
@@ -560,14 +560,15 @@ export default function ReadingTracker() {
   const [completingBook, setCompletingBook] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Reading streak (reset to Jan 1, 2026)
+  // Reading streak (starts from Jan 1, 2026 - Day 1)
   const [didReadToday, setDidReadToday] = useState(true);
+
+  // Reset reading streak on first load to ensure it starts from Jan 1, 2026
+  useEffect(() => {
+    resetReadingStreak();
+  }, []);
+
   const readingStreak = useMemo(() => {
-    // Ensure streak starts from Jan 1, 2026
-    const storedStart = localStorage.getItem('iron-will-reading-streak-start');
-    if (!storedStart || storedStart < '2026-01-01') {
-      setReadingStreakStart('2026-01-01');
-    }
     return getReadingStreakData(didReadToday);
   }, [didReadToday]);
 

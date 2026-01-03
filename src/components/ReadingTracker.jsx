@@ -417,51 +417,55 @@ function ReadingForm({
   );
 }
 
-// Heat Map Component for visualizing reading progress
-function ReadingHeatMap({ totalPages, pageHeatMap }) {
-  // Determine segment size based on total pages
-  const getSegmentSize = (pages) => {
-    if (pages <= 50) return 1;      // 1 page per segment
-    if (pages <= 100) return 2;     // 2 pages per segment
-    if (pages <= 200) return 4;     // 4 pages per segment
-    if (pages <= 500) return 10;    // 10 pages per segment
-    return Math.ceil(pages / 50);   // ~50 segments max
-  };
+// Positional Progress Bar - shows WHERE in the book you've read
+function PositionalProgressBar({ totalPages, pageHeatMap }) {
+  // Build segments from page heat map - contiguous ranges with same read count
+  const segments = useMemo(() => {
+    if (!totalPages) return [];
 
-  const segmentSize = getSegmentSize(totalPages);
-  const segments = [];
+    const result = [];
+    let currentStart = 1;
+    let currentReads = pageHeatMap[1] || 0;
 
-  for (let startPage = 1; startPage <= totalPages; startPage += segmentSize) {
-    const endPage = Math.min(startPage + segmentSize - 1, totalPages);
+    for (let page = 2; page <= totalPages + 1; page++) {
+      const reads = page <= totalPages ? (pageHeatMap[page] || 0) : -1; // -1 to force final segment
 
-    // Calculate max read count in this segment
-    let maxReads = 0;
-    for (let page = startPage; page <= endPage; page++) {
-      maxReads = Math.max(maxReads, pageHeatMap[page] || 0);
+      if (reads !== currentReads) {
+        // End current segment
+        result.push({
+          startPage: currentStart,
+          endPage: page - 1,
+          reads: currentReads,
+          startPercent: ((currentStart - 1) / totalPages) * 100,
+          widthPercent: ((page - currentStart) / totalPages) * 100,
+        });
+        currentStart = page;
+        currentReads = reads;
+      }
     }
 
-    segments.push({ startPage, endPage, reads: maxReads });
-  }
+    return result;
+  }, [totalPages, pageHeatMap]);
 
-  // Get color intensity based on read count
+  // Get color based on read count
   const getSegmentColor = (reads) => {
     if (reads === 0) return 'bg-gray-600';
-    if (reads === 1) return 'bg-green-700';
+    if (reads === 1) return 'bg-green-600';
     if (reads === 2) return 'bg-green-500';
-    return 'bg-green-400'; // 3+ reads
+    return 'bg-green-400'; // 3+ reads - brightest
   };
 
   return (
-    <div className="flex flex-wrap gap-[2px]">
+    <div className="relative h-2 bg-gray-600 rounded-full overflow-hidden">
       {segments.map((segment, index) => (
         <div
           key={index}
-          className={`h-2 rounded-sm transition-colors ${getSegmentColor(segment.reads)}`}
+          className={`absolute top-0 h-full ${getSegmentColor(segment.reads)}`}
           style={{
-            width: `calc(${100 / Math.min(segments.length, 25)}% - 2px)`,
-            minWidth: '4px'
+            left: `${segment.startPercent}%`,
+            width: `${segment.widthPercent}%`,
           }}
-          title={`Pages ${segment.startPage}-${segment.endPage}: ${segment.reads === 0 ? 'unread' : `${segment.reads}x`}`}
+          title={`Pages ${segment.startPage}-${segment.endPage}: ${segment.reads === 0 ? 'unread' : `read ${segment.reads}x`}`}
         />
       ))}
     </div>
@@ -493,9 +497,9 @@ function BookCard({ book, onClick, isExpanded, readingLogs }) {
           )}
         </div>
 
-        {/* Heat Map Progress */}
+        {/* Positional Progress Bar */}
         <div className="mt-2">
-          <ReadingHeatMap totalPages={book.total_pages} pageHeatMap={pageHeatMap} />
+          <PositionalProgressBar totalPages={book.total_pages} pageHeatMap={pageHeatMap} />
           <p className="text-xs text-gray-400 mt-1">
             {uniquePagesRead} of {book.total_pages} pages ({progress}%)
           </p>
@@ -726,6 +730,16 @@ export default function ReadingTracker() {
         ]);
         setActiveBooks(active);
         setCompletedBooks(completed);
+
+        // Load reading logs for all active books (for progress bar display)
+        const logsMap = {};
+        await Promise.all(
+          active.map(async (book) => {
+            const logs = await getReadingLogsForBook(book.id);
+            logsMap[book.id] = logs;
+          })
+        );
+        setBookReadingLogs(logsMap);
       } catch (error) {
         console.error('Error loading reading data:', error);
       }

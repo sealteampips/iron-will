@@ -11,6 +11,7 @@ import {
   X,
   Trophy,
   Quote,
+  Trash2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
@@ -27,6 +28,7 @@ import {
   restoreReadingStreak,
   resetReadingStreak,
   calculateReadingProgress,
+  deleteReadingLogById,
 } from '../lib/dataService';
 
 // Reading-focused quotes
@@ -501,7 +503,7 @@ function PositionalProgressBar({ totalPages, pageHeatMap }) {
 }
 
 // Book Card Component
-function BookCard({ book, onClick, isExpanded, readingLogs }) {
+function BookCard({ book, onClick, isExpanded, readingLogs, onDeleteLog }) {
   // Calculate progress from reading logs
   const { uniquePagesRead, progress, pageHeatMap } = useMemo(() => {
     return calculateReadingProgress(readingLogs, book.total_pages);
@@ -546,14 +548,26 @@ function BookCard({ book, onClick, isExpanded, readingLogs }) {
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {readingLogs.map((log) => (
                 <div key={log.id} className="text-sm bg-gray-800/50 rounded p-2">
-                  <div className="flex justify-between text-gray-400">
-                    <span>{format(new Date(log.date), 'MMM d, yyyy')}</span>
-                    <span>
-                      {log.start_page && log.end_page
-                        ? `Pages ${log.start_page}-${log.end_page}`
-                        : `Page ${log.page_number}`
-                      }
-                    </span>
+                  <div className="flex justify-between items-start text-gray-400">
+                    <span>{format(parseISO(log.date), 'MMM d, yyyy')}</span>
+                    <div className="flex items-center gap-2">
+                      <span>
+                        {log.start_page && log.end_page
+                          ? `Pages ${log.start_page}-${log.end_page}`
+                          : `Page ${log.page_number}`
+                        }
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteLog(log);
+                        }}
+                        className="p-1 hover:bg-red-600/20 rounded text-gray-500 hover:text-red-400 transition-colors"
+                        title="Delete entry"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                   {log.notes && (
                     <p className="text-gray-300 mt-1 text-xs">{log.notes}</p>
@@ -582,7 +596,7 @@ function CompletedBookCard({ book }) {
       <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
         <span>{book.total_pages} pages</span>
         {book.completed_date && (
-          <span>Completed {format(new Date(book.completed_date), 'MMM d, yyyy')}</span>
+          <span>Completed {format(parseISO(book.completed_date), 'MMM d, yyyy')}</span>
         )}
       </div>
     </div>
@@ -711,6 +725,50 @@ function CompletionModal({ book, onConfirm, onCancel }) {
   );
 }
 
+// Delete Reading Log Confirmation Modal
+function DeleteLogModal({ log, onConfirm, onCancel, deleting }) {
+  if (!log) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md text-center">
+        <div className="text-4xl mb-4">
+          <Trash2 className="w-10 h-10 text-red-400 mx-auto" />
+        </div>
+        <h3 className="text-xl font-bold mb-2">Delete Reading Entry?</h3>
+        <p className="text-gray-300 mb-2">
+          {format(parseISO(log.date), 'MMMM d, yyyy')}
+        </p>
+        <p className="text-gray-400 text-sm mb-6">
+          {log.start_page && log.end_page
+            ? `Pages ${log.start_page}-${log.end_page}`
+            : `Page ${log.page_number}`
+          }
+        </p>
+        <p className="text-red-400 text-sm mb-6">
+          This cannot be undone.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            disabled={deleting}
+            className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={deleting}
+            className="flex-1 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium disabled:opacity-50"
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Main Reading Tracker Component
 export default function ReadingTracker() {
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -724,6 +782,8 @@ export default function ReadingTracker() {
   const [bookReadingLogs, setBookReadingLogs] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [completingBook, setCompletingBook] = useState(null);
+  const [deletingLog, setDeletingLog] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Reading streak (starts from Jan 1, 2026 - Day 1)
@@ -885,6 +945,31 @@ export default function ReadingTracker() {
     }
   };
 
+  // Handle delete reading log
+  const handleDeleteLog = async () => {
+    if (!deletingLog) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteReadingLogById(deletingLog.id);
+
+      // Update the book's reading logs in state (removes deleted entry)
+      if (deletingLog.book_id) {
+        const logs = await getReadingLogsForBook(deletingLog.book_id);
+        setBookReadingLogs((prev) => ({ ...prev, [deletingLog.book_id]: logs }));
+      }
+
+      // If the deleted log was for the selected date, clear currentLog
+      if (deletingLog.date === selectedDate) {
+        setCurrentLog(null);
+      }
+    } catch (error) {
+      console.error('Error deleting reading log:', error);
+    }
+    setIsDeleting(false);
+    setDeletingLog(null);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -939,6 +1024,7 @@ export default function ReadingTracker() {
                 }
                 isExpanded={expandedBookId === book.id}
                 readingLogs={bookReadingLogs[book.id] || []}
+                onDeleteLog={(log) => setDeletingLog(log)}
               />
             ))}
           </div>
@@ -987,6 +1073,12 @@ export default function ReadingTracker() {
         book={completingBook}
         onConfirm={handleCompleteBook}
         onCancel={() => setCompletingBook(null)}
+      />
+      <DeleteLogModal
+        log={deletingLog}
+        onConfirm={handleDeleteLog}
+        onCancel={() => setDeletingLog(null)}
+        deleting={isDeleting}
       />
     </div>
   );

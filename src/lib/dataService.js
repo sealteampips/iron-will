@@ -681,16 +681,16 @@ export const calculateReadingProgress = (readingLogs, totalPages) => {
   return { uniquePagesRead, progress, pageHeatMap };
 };
 
-// Delete reading log for a date
-export const deleteReadingLog = async (date) => {
+// Delete reading log by id
+export const deleteReadingLogById = async (id) => {
   const { error } = await supabase
     .from('reading_logs')
     .delete()
-    .eq('date', date);
+    .eq('id', id);
 
   if (error) {
     console.error('Error deleting reading log:', error);
-    return false;
+    throw new Error(`Failed to delete reading log: ${error.message}`);
   }
 
   return true;

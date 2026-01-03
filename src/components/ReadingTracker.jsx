@@ -26,6 +26,7 @@ import {
   breakReadingStreak,
   restoreReadingStreak,
   resetReadingStreak,
+  calculateReadingProgress,
 } from '../lib/dataService';
 
 // Reading-focused quotes
@@ -195,16 +196,30 @@ function ReadingForm({
 }) {
   const [didRead, setDidRead] = useState(currentLog?.did_read ?? true);
   const [selectedBookId, setSelectedBookId] = useState(currentLog?.book_id || '');
-  const [pageNumber, setPageNumber] = useState(currentLog?.page_number?.toString() || '');
+  const [startPage, setStartPage] = useState(currentLog?.start_page?.toString() || '');
+  const [endPage, setEndPage] = useState(currentLog?.end_page?.toString() || '');
   const [notes, setNotes] = useState(currentLog?.notes || '');
   const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState('');
 
   // Update form when log changes
   useEffect(() => {
     setDidRead(currentLog?.did_read ?? true);
     setSelectedBookId(currentLog?.book_id || '');
-    setPageNumber(currentLog?.page_number?.toString() || '');
+    // Handle both new format (start_page/end_page) and old format (page_number)
+    if (currentLog?.start_page && currentLog?.end_page) {
+      setStartPage(currentLog.start_page.toString());
+      setEndPage(currentLog.end_page.toString());
+    } else if (currentLog?.page_number) {
+      // Fallback for old format
+      setStartPage('');
+      setEndPage(currentLog.page_number.toString());
+    } else {
+      setStartPage('');
+      setEndPage('');
+    }
     setNotes(currentLog?.notes || '');
+    setValidationError('');
   }, [currentLog, selectedDate]);
 
   // Auto-select first book if none selected
@@ -222,12 +237,42 @@ function ReadingForm({
     }
   };
 
+  const selectedBook = activeBooks.find(b => b.id === selectedBookId);
+
+  // Validate page inputs
+  const validatePages = () => {
+    const start = parseInt(startPage, 10);
+    const end = parseInt(endPage, 10);
+    const maxPages = selectedBook?.total_pages || 9999;
+
+    if (!startPage || !endPage) {
+      setValidationError('Please enter both start and end pages');
+      return false;
+    }
+    if (start < 1) {
+      setValidationError('Start page must be at least 1');
+      return false;
+    }
+    if (end < start) {
+      setValidationError('End page must be >= start page');
+      return false;
+    }
+    if (end > maxPages) {
+      setValidationError(`End page cannot exceed ${maxPages}`);
+      return false;
+    }
+    setValidationError('');
+    return true;
+  };
+
   const handleSave = async () => {
     if (!didRead) {
       setSaving(true);
       await onSave({
         date: selectedDate,
         book_id: null,
+        start_page: null,
+        end_page: null,
         page_number: null,
         notes: '',
         did_read: false,
@@ -236,20 +281,26 @@ function ReadingForm({
       return;
     }
 
-    if (!selectedBookId || !pageNumber) return;
+    if (!selectedBookId) return;
+    if (!validatePages()) return;
+
+    const start = parseInt(startPage, 10);
+    const end = parseInt(endPage, 10);
 
     setSaving(true);
     await onSave({
       date: selectedDate,
       book_id: selectedBookId,
-      page_number: parseInt(pageNumber, 10),
+      start_page: start,
+      end_page: end,
+      page_number: end, // Keep for backward compatibility
       notes,
       did_read: true,
     });
     setSaving(false);
   };
 
-  const selectedBook = activeBooks.find(b => b.id === selectedBookId);
+  const isFormValid = didRead ? (selectedBookId && startPage && endPage) : true;
 
   return (
     <div className="bg-gray-800 rounded-xl p-4 mb-4">
@@ -294,25 +345,46 @@ function ReadingForm({
             </select>
           </div>
 
-          {/* Page number */}
+          {/* Page range inputs */}
           <div className="mb-3">
             <label className="block text-sm text-gray-400 mb-1">
-              Page stopped on:
+              Pages read:
               {selectedBook && (
                 <span className="text-gray-500 ml-2">
                   (of {selectedBook.total_pages})
                 </span>
               )}
             </label>
-            <input
-              type="number"
-              value={pageNumber}
-              onChange={(e) => setPageNumber(e.target.value)}
-              min="1"
-              max={selectedBook?.total_pages || 9999}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
-              placeholder="Enter page number"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={startPage}
+                onChange={(e) => {
+                  setStartPage(e.target.value);
+                  setValidationError('');
+                }}
+                min="1"
+                max={selectedBook?.total_pages || 9999}
+                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                placeholder="From"
+              />
+              <span className="text-gray-400">to</span>
+              <input
+                type="number"
+                value={endPage}
+                onChange={(e) => {
+                  setEndPage(e.target.value);
+                  setValidationError('');
+                }}
+                min="1"
+                max={selectedBook?.total_pages || 9999}
+                className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                placeholder="To"
+              />
+            </div>
+            {validationError && (
+              <p className="text-red-400 text-xs mt-1">{validationError}</p>
+            )}
           </div>
 
           {/* Notes */}
@@ -332,9 +404,9 @@ function ReadingForm({
       {/* Save button */}
       <button
         onClick={handleSave}
-        disabled={saving || (didRead && (!selectedBookId || !pageNumber))}
+        disabled={saving || !isFormValid}
         className={`w-full py-2 rounded-lg font-medium transition-colors ${
-          saving || (didRead && (!selectedBookId || !pageNumber))
+          saving || !isFormValid
             ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
             : 'bg-blue-600 hover:bg-blue-700 text-white'
         }`}
@@ -345,11 +417,63 @@ function ReadingForm({
   );
 }
 
+// Heat Map Component for visualizing reading progress
+function ReadingHeatMap({ totalPages, pageHeatMap }) {
+  // Determine segment size based on total pages
+  const getSegmentSize = (pages) => {
+    if (pages <= 50) return 1;      // 1 page per segment
+    if (pages <= 100) return 2;     // 2 pages per segment
+    if (pages <= 200) return 4;     // 4 pages per segment
+    if (pages <= 500) return 10;    // 10 pages per segment
+    return Math.ceil(pages / 50);   // ~50 segments max
+  };
+
+  const segmentSize = getSegmentSize(totalPages);
+  const segments = [];
+
+  for (let startPage = 1; startPage <= totalPages; startPage += segmentSize) {
+    const endPage = Math.min(startPage + segmentSize - 1, totalPages);
+
+    // Calculate max read count in this segment
+    let maxReads = 0;
+    for (let page = startPage; page <= endPage; page++) {
+      maxReads = Math.max(maxReads, pageHeatMap[page] || 0);
+    }
+
+    segments.push({ startPage, endPage, reads: maxReads });
+  }
+
+  // Get color intensity based on read count
+  const getSegmentColor = (reads) => {
+    if (reads === 0) return 'bg-gray-600';
+    if (reads === 1) return 'bg-green-700';
+    if (reads === 2) return 'bg-green-500';
+    return 'bg-green-400'; // 3+ reads
+  };
+
+  return (
+    <div className="flex flex-wrap gap-[2px]">
+      {segments.map((segment, index) => (
+        <div
+          key={index}
+          className={`h-2 rounded-sm transition-colors ${getSegmentColor(segment.reads)}`}
+          style={{
+            width: `calc(${100 / Math.min(segments.length, 25)}% - 2px)`,
+            minWidth: '4px'
+          }}
+          title={`Pages ${segment.startPage}-${segment.endPage}: ${segment.reads === 0 ? 'unread' : `${segment.reads}x`}`}
+        />
+      ))}
+    </div>
+  );
+}
+
 // Book Card Component
 function BookCard({ book, onClick, isExpanded, readingLogs }) {
-  const progress = book.total_pages > 0
-    ? Math.round((book.pages_read / book.total_pages) * 100)
-    : 0;
+  // Calculate progress from reading logs
+  const { uniquePagesRead, progress, pageHeatMap } = useMemo(() => {
+    return calculateReadingProgress(readingLogs, book.total_pages);
+  }, [readingLogs, book.total_pages]);
 
   return (
     <div className="bg-gray-700/50 rounded-lg overflow-hidden">
@@ -369,16 +493,11 @@ function BookCard({ book, onClick, isExpanded, readingLogs }) {
           )}
         </div>
 
-        {/* Progress bar */}
+        {/* Heat Map Progress */}
         <div className="mt-2">
-          <div className="h-2 bg-gray-600 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-green-500 transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+          <ReadingHeatMap totalPages={book.total_pages} pageHeatMap={pageHeatMap} />
           <p className="text-xs text-gray-400 mt-1">
-            {book.pages_read} of {book.total_pages} pages ({progress}%)
+            {uniquePagesRead} of {book.total_pages} pages ({progress}%)
           </p>
         </div>
       </button>
@@ -397,7 +516,12 @@ function BookCard({ book, onClick, isExpanded, readingLogs }) {
                 <div key={log.id} className="text-sm bg-gray-800/50 rounded p-2">
                   <div className="flex justify-between text-gray-400">
                     <span>{format(new Date(log.date), 'MMM d, yyyy')}</span>
-                    <span>Page {log.page_number}</span>
+                    <span>
+                      {log.start_page && log.end_page
+                        ? `Pages ${log.start_page}-${log.end_page}`
+                        : `Page ${log.page_number}`
+                      }
+                    </span>
                   </div>
                   {log.notes && (
                     <p className="text-gray-300 mt-1 text-xs">{log.notes}</p>
@@ -652,30 +776,33 @@ export default function ReadingTracker() {
       await saveReadingLog(log);
       setCurrentLog(log);
 
+      // Use end_page for progress tracking (with fallback to page_number for old logs)
+      const maxPageRead = log.end_page || log.page_number;
+
       // Update book progress if they read (only for today's entries to prevent confusion)
-      if (log.did_read && log.book_id && log.page_number && log.date === today) {
+      if (log.did_read && log.book_id && maxPageRead && log.date === today) {
         const book = activeBooks.find((b) => b.id === log.book_id);
         if (book) {
           const updated = await updateBookInDB(log.book_id, {
-            pages_read: log.page_number,
+            pages_read: maxPageRead,
           });
 
           // Check if book is complete
-          if (updated && log.page_number >= book.total_pages) {
+          if (updated && maxPageRead >= book.total_pages) {
             setCompletingBook(book);
           } else {
             // Refresh active books
             setActiveBooks((prev) =>
               prev.map((b) =>
-                b.id === log.book_id ? { ...b, pages_read: log.page_number } : b
+                b.id === log.book_id ? { ...b, pages_read: maxPageRead } : b
               )
             );
           }
         }
       }
 
-      // Refresh book reading logs if expanded
-      if (log.book_id && bookReadingLogs[log.book_id]) {
+      // Refresh book reading logs (always refresh to update heat map)
+      if (log.book_id) {
         const logs = await getReadingLogsForBook(log.book_id);
         setBookReadingLogs((prev) => ({ ...prev, [log.book_id]: logs }));
       }

@@ -621,7 +621,9 @@ export const saveReadingLog = async (log) => {
     .upsert({
       date: log.date,
       book_id: log.book_id,
-      page_number: log.page_number,
+      page_number: log.page_number, // Keep for backward compatibility
+      start_page: log.start_page,
+      end_page: log.end_page,
       notes: log.notes || '',
       did_read: log.did_read ?? true,
     }, { onConflict: 'date' })
@@ -634,6 +636,36 @@ export const saveReadingLog = async (log) => {
   }
 
   return data;
+};
+
+// Calculate reading progress from logs (unique pages read)
+export const calculateReadingProgress = (readingLogs, totalPages) => {
+  if (!readingLogs || readingLogs.length === 0 || !totalPages) {
+    return { uniquePagesRead: 0, progress: 0, pageHeatMap: {} };
+  }
+
+  // Build heat map of page read counts
+  const pageHeatMap = {};
+
+  readingLogs.forEach(log => {
+    // Handle new format (start_page to end_page)
+    if (log.start_page && log.end_page) {
+      for (let page = log.start_page; page <= log.end_page; page++) {
+        pageHeatMap[page] = (pageHeatMap[page] || 0) + 1;
+      }
+    }
+    // Handle old format (single page_number - treat as reading up to that page)
+    else if (log.page_number) {
+      // For backward compatibility, assume pages 1 to page_number were read
+      // This is a fallback; ideally old data should be migrated
+      pageHeatMap[log.page_number] = (pageHeatMap[log.page_number] || 0) + 1;
+    }
+  });
+
+  const uniquePagesRead = Object.keys(pageHeatMap).length;
+  const progress = totalPages > 0 ? Math.round((uniquePagesRead / totalPages) * 100) : 0;
+
+  return { uniquePagesRead, progress, pageHeatMap };
 };
 
 // Delete reading log for a date

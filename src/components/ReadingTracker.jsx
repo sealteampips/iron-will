@@ -211,8 +211,8 @@ function ReadingForm({
       setStartPage(currentLog.start_page.toString());
       setEndPage(currentLog.end_page.toString());
     } else if (currentLog?.page_number) {
-      // Fallback for old format
-      setStartPage('');
+      // Fallback for old format - use page_number as end, leave start empty for user to fill
+      setStartPage('1'); // Default to 1 for old format
       setEndPage(currentLog.page_number.toString());
     } else {
       setStartPage('');
@@ -269,6 +269,7 @@ function ReadingForm({
     if (!didRead) {
       setSaving(true);
       await onSave({
+        id: currentLog?.id, // Include id for updates
         date: selectedDate,
         book_id: null,
         start_page: null,
@@ -289,6 +290,7 @@ function ReadingForm({
 
     setSaving(true);
     await onSave({
+      id: currentLog?.id, // Include id for updates
       date: selectedDate,
       book_id: selectedBookId,
       start_page: start,
@@ -787,8 +789,8 @@ export default function ReadingTracker() {
   // Handle save reading log
   const handleSaveReading = async (log) => {
     try {
-      await saveReadingLog(log);
-      setCurrentLog(log);
+      const savedLog = await saveReadingLog(log);
+      setCurrentLog(savedLog); // Use returned data which includes the id
 
       // Use end_page for progress tracking (with fallback to page_number for old logs)
       const maxPageRead = log.end_page || log.page_number;

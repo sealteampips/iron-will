@@ -616,17 +616,24 @@ export const getReadingLogForDate = async (date) => {
 
 // Save reading log (upsert by date - one entry per day)
 export const saveReadingLog = async (log) => {
+  const payload = {
+    date: log.date,
+    book_id: log.book_id,
+    page_number: log.page_number, // Keep for backward compatibility
+    start_page: log.start_page,
+    end_page: log.end_page,
+    notes: log.notes || '',
+    did_read: log.did_read ?? true,
+  };
+
+  // Include id if we're updating an existing record
+  if (log.id) {
+    payload.id = log.id;
+  }
+
   const { data, error } = await supabase
     .from('reading_logs')
-    .upsert({
-      date: log.date,
-      book_id: log.book_id,
-      page_number: log.page_number, // Keep for backward compatibility
-      start_page: log.start_page,
-      end_page: log.end_page,
-      notes: log.notes || '',
-      did_read: log.did_read ?? true,
-    }, { onConflict: 'date' })
+    .upsert(payload, { onConflict: 'date' })
     .select()
     .single();
 

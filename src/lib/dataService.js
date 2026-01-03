@@ -616,6 +616,8 @@ export const getReadingLogForDate = async (date) => {
 
 // Save reading log (upsert by date - one entry per day)
 export const saveReadingLog = async (log) => {
+  console.log('[saveReadingLog] Input:', log);
+
   const payload = {
     date: log.date,
     book_id: log.book_id,
@@ -631,11 +633,15 @@ export const saveReadingLog = async (log) => {
     payload.id = log.id;
   }
 
+  console.log('[saveReadingLog] Payload:', payload);
+
   const { data, error } = await supabase
     .from('reading_logs')
     .upsert(payload, { onConflict: 'date' })
     .select()
     .single();
+
+  console.log('[saveReadingLog] Result:', { data, error });
 
   if (error) {
     console.error('Error saving reading log:', error);

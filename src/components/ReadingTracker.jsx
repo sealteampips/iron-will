@@ -201,6 +201,7 @@ function ReadingForm({
   const [notes, setNotes] = useState(currentLog?.notes || '');
   const [saving, setSaving] = useState(false);
   const [validationError, setValidationError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   // Update form when log changes
   useEffect(() => {
@@ -266,39 +267,59 @@ function ReadingForm({
   };
 
   const handleSave = async () => {
+    console.log('[ReadingForm.handleSave] didRead:', didRead, 'selectedBookId:', selectedBookId);
+    setSaveError('');
+
     if (!didRead) {
       setSaving(true);
-      await onSave({
-        id: currentLog?.id, // Include id for updates
-        date: selectedDate,
-        book_id: null,
-        start_page: null,
-        end_page: null,
-        page_number: null,
-        notes: '',
-        did_read: false,
-      });
+      try {
+        await onSave({
+          id: currentLog?.id, // Include id for updates
+          date: selectedDate,
+          book_id: null,
+          start_page: null,
+          end_page: null,
+          page_number: null,
+          notes: '',
+          did_read: false,
+        });
+      } catch (err) {
+        setSaveError(err.message || 'Failed to save');
+      }
       setSaving(false);
       return;
     }
 
-    if (!selectedBookId) return;
-    if (!validatePages()) return;
+    if (!selectedBookId) {
+      console.log('[ReadingForm.handleSave] No selectedBookId, returning');
+      return;
+    }
+    if (!validatePages()) {
+      console.log('[ReadingForm.handleSave] Validation failed');
+      return;
+    }
 
     const start = parseInt(startPage, 10);
     const end = parseInt(endPage, 10);
 
+    console.log('[ReadingForm.handleSave] Saving:', { selectedDate, selectedBookId, start, end, notes });
     setSaving(true);
-    await onSave({
-      id: currentLog?.id, // Include id for updates
-      date: selectedDate,
-      book_id: selectedBookId,
-      start_page: start,
-      end_page: end,
-      page_number: end, // Keep for backward compatibility
-      notes,
-      did_read: true,
-    });
+    try {
+      await onSave({
+        id: currentLog?.id, // Include id for updates
+        date: selectedDate,
+        book_id: selectedBookId,
+        start_page: start,
+        end_page: end,
+        page_number: end, // Keep for backward compatibility
+        notes,
+        did_read: true,
+      });
+      console.log('[ReadingForm.handleSave] Done');
+    } catch (err) {
+      console.error('[ReadingForm.handleSave] Error:', err);
+      setSaveError(err.message || 'Failed to save');
+    }
     setSaving(false);
   };
 
@@ -415,6 +436,11 @@ function ReadingForm({
       >
         {saving ? 'Saving...' : 'Save'}
       </button>
+
+      {/* Save error display */}
+      {saveError && (
+        <p className="text-red-400 text-sm mt-2 text-center">{saveError}</p>
+      )}
     </div>
   );
 }
@@ -788,42 +814,43 @@ export default function ReadingTracker() {
 
   // Handle save reading log
   const handleSaveReading = async (log) => {
-    try {
-      const savedLog = await saveReadingLog(log);
-      setCurrentLog(savedLog); // Use returned data which includes the id
+    console.log('[handleSaveReading] Called with:', log);
+    // Let errors propagate so ReadingForm can catch and display them
+    const savedLog = await saveReadingLog(log);
+    console.log('[handleSaveReading] savedLog:', savedLog);
+    setCurrentLog(savedLog); // Use returned data which includes the id
 
-      // Use end_page for progress tracking (with fallback to page_number for old logs)
-      const maxPageRead = log.end_page || log.page_number;
+    // Use end_page for progress tracking (with fallback to page_number for old logs)
+    const maxPageRead = log.end_page || log.page_number;
 
-      // Update book progress if they read (only for today's entries to prevent confusion)
-      if (log.did_read && log.book_id && maxPageRead && log.date === today) {
-        const book = activeBooks.find((b) => b.id === log.book_id);
-        if (book) {
-          const updated = await updateBookInDB(log.book_id, {
-            pages_read: maxPageRead,
-          });
+    // Update book progress if they read (only for today's entries to prevent confusion)
+    if (log.did_read && log.book_id && maxPageRead && log.date === today) {
+      const book = activeBooks.find((b) => b.id === log.book_id);
+      if (book) {
+        const updated = await updateBookInDB(log.book_id, {
+          pages_read: maxPageRead,
+        });
 
-          // Check if book is complete
-          if (updated && maxPageRead >= book.total_pages) {
-            setCompletingBook(book);
-          } else {
-            // Refresh active books
-            setActiveBooks((prev) =>
-              prev.map((b) =>
-                b.id === log.book_id ? { ...b, pages_read: maxPageRead } : b
-              )
-            );
-          }
+        // Check if book is complete
+        if (updated && maxPageRead >= book.total_pages) {
+          setCompletingBook(book);
+        } else {
+          // Refresh active books
+          setActiveBooks((prev) =>
+            prev.map((b) =>
+              b.id === log.book_id ? { ...b, pages_read: maxPageRead } : b
+            )
+          );
         }
       }
+    }
 
-      // Refresh book reading logs (always refresh to update heat map)
-      if (log.book_id) {
-        const logs = await getReadingLogsForBook(log.book_id);
-        setBookReadingLogs((prev) => ({ ...prev, [log.book_id]: logs }));
-      }
-    } catch (error) {
-      console.error('Error saving reading:', error);
+    // Refresh book reading logs (always refresh to update heat map)
+    if (log.book_id) {
+      console.log('[handleSaveReading] Refreshing logs for book:', log.book_id);
+      const logs = await getReadingLogsForBook(log.book_id);
+      console.log('[handleSaveReading] Got logs:', logs);
+      setBookReadingLogs((prev) => ({ ...prev, [log.book_id]: logs }));
     }
   };
 
